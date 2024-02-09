@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Путеводитель Захаренков</title>
+  <script src="https://api-maps.yandex.ru/2.1/?apikey=c8c2deb5-7788-4484-9b68-e24e4d08c883&lang=ru_RU" type="text/javascript"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style> img {width: 500px; height: 400px}</style>
+</head>
+<body>
+  <h2> Функционал Путеводителя:</h2>
+  <li> Приложение отслеживает местоположение пользователя на Яндекс Картах и отображает </li>
+  <li> В local storage содержатся три объекта - достопримечательности и информация о них (координаты и фотография) </li>
+  <li> При приближении пользователя на дистанцию в 15 км к достопримечательности отображается фотография </li>
+  <li> К приложению подключен api openweathermap, благодаря которому в текстовом формате также отображается погода по геолокации пользователя </li>
+  <div id="map" style="width: 600px; height: 400px;"></div>  
+  <script>
+    var objects = [
+      {
+        name: "Большой театр",
+        coordinates: [55.76022402296627, 37.61861641034272],
+        image: 'https://postimg.cc/nXwGxqPS'
+      },
+      {
+        name: "Третьяковская галерея",
+        coordinates: [55.741715135657145, 37.62081025522212],
+        image: 'https://postimg.cc/KRD06kbC'
+      },
+      {
+        name: "Винзавод",
+        coordinates: [55.75592366682265, 37.665241285858414],
+        image: "https://postimg.cc/640CmZZ0"
+      }
+      ];
+
+    localStorage.setItem('objects', JSON.stringify(objects));
+
+    var retrievedObjects = JSON.parse(localStorage.getItem('objects'));
+
+    ymaps.ready(init);
+
+    function init() {
+      var myMap = new ymaps.Map("map", {
+        center: [55.75, 37.62],
+        zoom: 10
+      });
+
+      ymaps.geolocation.get({
+        provider: 'browser',
+        mapStateAutoApply: true
+      }).then(function(result) {
+        var myLocation = result.geoObjects.get(0).geometry.getCoordinates();
+        var myPlacemark = new ymaps.Placemark(myLocation, {}, {
+          preset: 'islands#circleIcon',
+          iconColor: '#007bff'
+        });
+        myMap.geoObjects.add(myPlacemark);
+        
+        $.get('https://api.openweathermap.org/data/2.5/weather', {
+          lat: myLocation[0],
+          lon: myLocation[1],
+          appid: '774579236ec26cf65133dd5f64f1ab0f',
+          units: 'metric'
+        }, function(data) {
+          var temperature = data.main.temp;
+          var weatherDescription = data.weather[0].description;
+          var weatherInfo = $('<p>').text('Температура: ' + temperature + '°C, ' + weatherDescription);
+          $('body').append(weatherInfo);
+        });
+
+        retrievedObjects.forEach(function(object) {
+          var objectPlacemark = new ymaps.Placemark(object.coordinates, {
+            balloonContent: object.name
+          });
+
+          var distance = ymaps.coordSystem.geo.getDistance(myLocation, object.coordinates);
+          if (distance <= 15000) {
+            var img = document.createElement('img');
+            img.src = object.image;
+            document.body.appendChild(img);
+          }
+          myMap.geoObjects.add(objectPlacemark);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
